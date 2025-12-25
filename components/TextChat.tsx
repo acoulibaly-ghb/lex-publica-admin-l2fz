@@ -53,12 +53,12 @@ interface AttachedFile {
   mimeType: string;
 }
 
-const colorMap: Record<string, { primary: string, hover: string, bg: string, text: string, border: string }> = {
-  blue: { primary: 'bg-blue-700', hover: 'hover:bg-blue-800', bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200' },
-  emerald: { primary: 'bg-emerald-700', hover: 'hover:bg-emerald-800', bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
-  indigo: { primary: 'bg-indigo-700', hover: 'hover:bg-indigo-800', bg: 'bg-indigo-50', text: 'text-indigo-700', border: 'border-indigo-200' },
-  rose: { primary: 'bg-[#ad5c51]', hover: 'hover:bg-[#914a41]', bg: 'bg-[#fff5f4]', text: 'text-[#ad5c51]', border: 'border-[#f2d8d5]' },
-  amber: { primary: 'bg-amber-700', hover: 'hover:bg-amber-800', bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200' },
+const colorMap: Record<string, { primary: string, hover: string, bg: string, text: string, border: string, ring: string }> = {
+  blue: { primary: 'bg-blue-700', hover: 'hover:bg-blue-800', bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200', ring: 'ring-blue-500' },
+  emerald: { primary: 'bg-emerald-700', hover: 'hover:bg-emerald-800', bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', ring: 'ring-emerald-500' },
+  indigo: { primary: 'bg-indigo-700', hover: 'hover:bg-indigo-800', bg: 'bg-indigo-50', text: 'text-indigo-700', border: 'border-indigo-200', ring: 'ring-indigo-500' },
+  rose: { primary: 'bg-[#ad5c51]', hover: 'hover:bg-[#914a41]', bg: 'bg-[#fff5f4]', text: 'text-[#ad5c51]', border: 'border-[#f2d8d5]', ring: 'ring-[#ad5c51]' },
+  amber: { primary: 'bg-amber-700', hover: 'hover:bg-amber-800', bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', ring: 'ring-amber-500' },
 };
 
 export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruction, apiKey, themeColor = 'blue' }) => {
@@ -81,7 +81,6 @@ export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruc
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
   
-  // ÉTAT DE PERSISTANCE : Mémorise quel choix a été fait pour quel message (SessionID + Index)
   const [selectedAnswers, setSelectedAnswers] = useState<Record<string, string>>({});
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -121,7 +120,6 @@ export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruc
     const text = textToSend.trim();
     if ((!text && !attachedFile) || isLoading || !activeSessionId) return;
 
-    // Si on clique sur un choix de quiz, on mémorise la réponse pour ce message précis
     if (quizMsgIndex !== undefined && choiceLabel) {
       const key = `${activeSessionId}-${quizMsgIndex}`;
       setSelectedAnswers(prev => ({ ...prev, [key]: choiceLabel }));
@@ -158,7 +156,7 @@ export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruc
       contents.push({ role: 'user', parts: userParts });
 
       const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-3-flash-preview',
         contents,
         config: { systemInstruction: fullSystemInstruction }
       });
@@ -181,10 +179,6 @@ export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruc
     }
   };
 
-  /**
-   * MessageRenderer : Analyse le texte du message ligne par ligne.
-   * Si une ligne commence par [ ], elle est transformée en bouton de quiz.
-   */
   const MessageRenderer = ({ text, msgIndex, role }: { text: string, msgIndex: number, role: string }) => {
     if (role === 'user') {
       return <ReactMarkdown rehypePlugins={[rehypeRaw]} remarkPlugins={[remarkGfm]}>{text}</ReactMarkdown>;
@@ -197,29 +191,29 @@ export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruc
     return (
       <div className="space-y-2">
         {lines.map((line, i) => {
-          // Détection des options de Quiz [ ]
           const quizMatch = line.match(/^\[\s*\]\s*(.*)/);
           if (quizMatch) {
             const choiceLabel = quizMatch[1].trim();
             const isSelected = storedChoice === choiceLabel;
             
+            // Correction Visuelle : Largeur maximale et opacité réduite pour le fond
             return (
               <button
                 key={i}
                 disabled={isLoading || !!storedChoice}
                 onClick={() => sendMessage(choiceLabel, msgIndex, choiceLabel)}
-                className={`flex items-center gap-3 w-full p-3.5 my-1 rounded-xl border-2 text-left transition-all group ${
+                className={`flex items-center gap-3 w-full max-w-sm py-2.5 px-4 my-1.5 rounded-xl border-2 text-left transition-all group ${
                   isSelected 
-                    ? `${colors.primary} text-white border-transparent shadow-md scale-[1.01]` 
+                    ? `bg-[#ad5c51]/10 ${colors.text} border-[#ad5c51] shadow-sm scale-[1.01]` 
                     : 'bg-white dark:bg-slate-700 border-slate-100 dark:border-slate-600 hover:border-slate-300 dark:hover:border-slate-500 text-slate-700 dark:text-slate-200'
                 }`}
               >
-                <div className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${isSelected ? 'border-white bg-white/20' : 'border-slate-300 dark:border-slate-500 bg-slate-50 dark:bg-slate-800'}`}>
-                  {isSelected ? <CheckCircle2 size={16} /> : <Circle size={16} className="text-transparent group-hover:text-slate-300" />}
+                <div className={`flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${isSelected ? 'border-[#ad5c51] bg-[#ad5c51] text-white' : 'border-slate-300 dark:border-slate-500 bg-slate-50 dark:bg-slate-800'}`}>
+                  {isSelected ? <CheckCircle2 size={12} strokeWidth={3} /> : <Circle size={12} className="text-transparent group-hover:text-slate-300" />}
                 </div>
-                <span className="font-semibold text-sm md:text-base flex-1">{choiceLabel}</span>
+                <span className={`font-semibold text-sm flex-1 ${isSelected ? 'text-[#ad5c51]' : ''}`}>{choiceLabel}</span>
                 {!storedChoice && (
-                  <span className="text-[10px] font-bold opacity-0 group-hover:opacity-100 uppercase tracking-tighter bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-slate-400">Choisir</span>
+                  <span className="text-[9px] font-bold opacity-0 group-hover:opacity-100 uppercase tracking-wider bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-slate-400">Choisir</span>
                 )}
               </button>
             );
@@ -270,7 +264,6 @@ export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruc
 
   return (
     <div className="flex h-full max-w-6xl mx-auto w-full bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden relative">
-      {/* Sidebar Historique */}
       <div className={`absolute inset-y-0 left-0 z-30 flex flex-col w-72 bg-slate-50 dark:bg-slate-950 border-r border-slate-200 dark:border-slate-800 transition-transform duration-300 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex flex-col gap-4">
           <div className="flex items-center justify-between">
@@ -301,7 +294,6 @@ export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruc
         </div>
       </div>
 
-      {/* Zone principale */}
       <div className="flex-1 flex flex-col min-w-0 bg-slate-50/30 dark:bg-slate-950">
         <header className="p-3 md:p-4 border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md flex items-center justify-between sticky top-0 z-10 shadow-sm shrink-0">
           <div className="flex items-center gap-1 md:gap-3">
@@ -346,7 +338,6 @@ export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruc
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Zone de saisie */}
         <div className="p-4 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800">
           <div className="flex gap-2 mb-3 md:mb-4 overflow-x-auto pb-2 no-scrollbar px-1">
             <button onClick={() => handleQuickAction('explication')} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-blue-700 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 rounded-lg hover:bg-blue-100 transition-all whitespace-nowrap"><Gavel size={14} /> Expliquez-moi...</button>
@@ -381,7 +372,6 @@ export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruc
         </div>
       </div>
       
-      {/* Modale d'aide */}
       {isHelpOpen && (
         <div className="absolute inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm transition-opacity">
           <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[90%] overflow-hidden border border-slate-200 dark:border-slate-700">
@@ -413,4 +403,3 @@ export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruc
     </div>
   );
 };
-
