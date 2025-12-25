@@ -1,63 +1,47 @@
 
 import React, { useState, useEffect } from 'react';
-import { ChatSession, ChatMessage } from '../types';
+import { ChatSession, ChatMessage, StudentProfile, ScoreRecord } from '../types';
 
 const STORAGE_KEY = 'droit_public_sessions';
+const PROFILES_KEY = 'droit_public_profiles';
 
 export const useChatStore = () => {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
+  const [profiles, setProfiles] = useState<StudentProfile[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const [currentProfileId, setCurrentProfileId] = useState<string | null>(null);
 
+  // Chargement initial
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
+    const storedSessions = localStorage.getItem(STORAGE_KEY);
+    const storedProfiles = localStorage.getItem(PROFILES_KEY);
+
+    if (storedSessions) {
       try {
-        const parsed = JSON.parse(stored);
-        const revived = parsed.map((s: any) => ({
+        const revived = JSON.parse(storedSessions).map((s: any) => ({
           ...s,
-          messages: s.messages.map((m: any) => ({
-            ...m,
-            timestamp: new Date(m.timestamp)
-          }))
+          messages: s.messages.map((m: any) => ({ ...m, timestamp: new Date(m.timestamp) }))
         }));
         setSessions(revived);
-        if (revived.length > 0) {
-          setActiveSessionId(revived[0].id);
-        } else {
-          createNewSession();
-        }
-      } catch (e) {
-        console.error("Failed to parse sessions", e);
-        createNewSession();
-      }
-    } else {
-      createNewSession();
+        if (revived.length > 0) setActiveSessionId(revived[0].id);
+      } catch (e) { createNewSession(); }
+    } else { createNewSession(); }
+
+    if (storedProfiles) {
+      try { setProfiles(JSON.parse(storedProfiles)); } catch (e) { setProfiles([]); }
     }
   }, []);
 
-  const clearAllSessions = () => {
-    localStorage.removeItem(STORAGE_KEY);
-    const firstId = createNewSession();
-    setSessions(prev => prev.filter(s => s.id === firstId));
-  };
-
+  // Persistance
   useEffect(() => {
     if (sessions.length > 0) {
-      try {
-        const serialized = JSON.stringify(sessions);
-        if (serialized.length > 4000000) {
-          console.warn("Storage limit approaching, purging oldest session...");
-          setSessions(prev => prev.slice(0, -1));
-          return;
-        }
-        localStorage.setItem(STORAGE_KEY, serialized);
-      } catch (e) {
-        if (e instanceof DOMException && e.name === 'QuotaExceededError') {
-          setSessions(prev => prev.slice(0, Math.max(1, Math.floor(prev.length / 2))));
-        }
-      }
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions));
     }
   }, [sessions]);
+
+  useEffect(() => {
+    localStorage.setItem(PROFILES_KEY, JSON.stringify(profiles));
+  }, [profiles]);
 
   const createNewSession = () => {
     const newSession: ChatSession = {
@@ -65,7 +49,7 @@ export const useChatStore = () => {
       title: 'Nouvelle conversation',
       messages: [{
         role: 'model',
-        text: "Bonjour ! Je suis **Ada**, votre assistante virtuelle, instruite par le **professeur Coulibaly**. Posez-moi une question sur le **cours de droit administratif général**, ou demandez-moi de générer un Quiz, un cas pratique, des schémas, etc.\n\n*Astuce : Vous pouvez aussi me transmettre vos propres documents PDF !*",
+        text: "Bonjour ! Je suis **Ada**, votre assistante virtuelle. Comment puis-je vous accompagner aujourd'hui dans vos révisions de droit administratif ?",
         timestamp: new Date()
       }],
       updatedAt: Date.now()
@@ -97,12 +81,7 @@ export const useChatStore = () => {
           if (s.messages.length === 1 && message.role === 'user' && s.title === 'Nouvelle conversation') {
             newTitle = message.text.slice(0, 30) + (message.text.length > 30 ? '...' : '');
           }
-          return {
-            ...s,
-            title: newTitle,
-            messages: [...s.messages, message],
-            updatedAt: Date.now()
-          };
+          return { ...s, title: newTitle, messages: [...s.messages, message], updatedAt: Date.now() };
         }
         return s;
       });
@@ -123,7 +102,43 @@ export const useChatStore = () => {
     }));
   };
 
+  // --- Logique des Profils ---
+  
+  const findProfilesByName = (name: string) => {
+    return profiles.filter(p => p.name.toLowerCase() === name.trim().toLowerCase());
+  };
+
+  const createNewProfile = (name: string): StudentProfile => {
+    const cleanName = name.trim();
+    const suffix = Math.floor(100 + Math.random() * 900);
+    const newProfile: StudentProfile = {
+      id: `${cleanName}-${suffix}`,
+      name: cleanName,
+      scores: []
+    };
+    setProfiles(prev => [...prev, newProfile]);
+    setCurrentProfileId(newProfile.id);
+    return newProfile;
+  };
+
+  const loginToProfile = (id: string) => {
+    const found = profiles.find(p => p.id === id);
+    if (found) setCurrentProfileId(found.id);
+  };
+
+  const logoutProfile = () => setCurrentProfileId(null);
+
+  const saveScore = (profileId: string, score: ScoreRecord) => {
+    setProfiles(prev => prev.map(p => {
+      if (p.id === profileId) {
+        return { ...p, scores: [...p.scores, score] };
+      }
+      return p;
+    }));
+  };
+
   const getActiveSession = () => sessions.find(s => s.id === activeSessionId);
+  const getCurrentProfile = () => profiles.find(p => p.id === currentProfileId);
 
   return {
     sessions,
@@ -134,7 +149,12 @@ export const useChatStore = () => {
     renameSession,
     addMessageToSession,
     selectOptionInMessage,
-    clearAllSessions,
+    findProfilesByName,
+    createNewProfile,
+    loginToProfile,
+    logoutProfile,
+    saveScore,
+    currentProfile: getCurrentProfile(),
     activeSession: getActiveSession()
   };
 };
