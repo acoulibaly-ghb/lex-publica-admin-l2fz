@@ -120,7 +120,6 @@ export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruc
     const lastMsg = activeSession?.messages[activeSession.messages.length - 1];
     const isAwaitingName = lastMsg?.text.toLowerCase().includes("prénom") || lastMsg?.text.toLowerCase().includes("pseudo");
 
-    // SÉCURITÉ : Interception des demandes de quiz avant identification
     const lowerText = text.toLowerCase();
     const isRequestingQuiz = lowerText.includes("quiz") || lowerText.includes("test") || lowerText.includes("qcm") || lowerText.includes("vrai/faux") || lowerText.includes("affirmation");
     
@@ -131,7 +130,7 @@ export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruc
        setTimeout(() => {
          addMessageToSession(activeSessionId, { 
            role: 'model', 
-           text: "C'est une excellente idée pour tester vos connaissances ! Mais avant, pourrais-je connaître votre **prénom** ? Je dois vous identifier pour pouvoir enregistrer votre progression.", 
+           text: "C'est une excellente idée ! Mais avant de commencer les révisions, j'ai besoin de connaître votre **prénom**. Cela me permet de créer votre dossier étudiant et de suivre vos progrès.", 
            timestamp: new Date() 
          });
          setIsLoading(false);
@@ -139,7 +138,6 @@ export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruc
        return;
     }
 
-    // Cas d'homonymes : l'utilisateur choisit son profil précis
     if (disambiguationOptions.length > 0 && overrideInput) {
       if (overrideInput.startsWith("Nouveau : ")) {
         const name = overrideInput.replace("Nouveau : ", "");
@@ -148,7 +146,7 @@ export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruc
         setDisambiguationOptions([]);
         setIsLoading(true);
         setTimeout(() => {
-          addMessageToSession(activeSessionId, { role: 'model', text: `Parfait, bienvenue **${profile.id}**. Un nouveau profil a été créé. Comment souhaitez-vous réviser aujourd'hui ?`, timestamp: new Date() });
+          addMessageToSession(activeSessionId, { role: 'model', text: `Bienvenue **${profile.id}**. Votre dossier est créé. Prêt à tester vos connaissances sur le droit administratif ?`, timestamp: new Date() });
           setIsLoading(false);
         }, 600);
       } else {
@@ -157,14 +155,13 @@ export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruc
         setDisambiguationOptions([]);
         setIsLoading(true);
         setTimeout(() => {
-          addMessageToSession(activeSessionId, { role: 'model', text: `Ravie de vous retrouver, **${overrideInput}** ! Vos notes ont été synchronisées. Prêt pour une nouvelle séance ?`, timestamp: new Date() });
+          addMessageToSession(activeSessionId, { role: 'model', text: `Heureuse de vous revoir, **${overrideInput}** ! J'ai chargé votre historique. On continue ?`, timestamp: new Date() });
           setIsLoading(false);
         }, 600);
       }
       return;
     }
 
-    // Premier message de nom : Ada vérifie s'il y a des homonymes
     if (isAwaitingName && !currentProfile && !overrideInput) {
       const matches = findProfilesByName(text);
       if (matches.length > 0) {
@@ -177,7 +174,7 @@ export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruc
           const listText = options.map(o => `[ ] ${o}`).join('\n');
           addMessageToSession(activeSessionId, { 
             role: 'model', 
-            text: `J'ai trouvé plusieurs profils pour "${text}". Pourriez-vous me confirmer lequel est le vôtre afin de reprendre votre suivi ?\n${listText}`, 
+            text: `Plusieurs profils correspondent à "${text}". Lequel est le vôtre ?\n${listText}`, 
             timestamp: new Date() 
           });
           setIsLoading(false);
@@ -191,7 +188,7 @@ export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruc
         setTimeout(() => {
           addMessageToSession(activeSessionId, { 
             role: 'model', 
-            text: `Enchantée ! Je vous ai créé le profil **${profile.id}**. Vous pouvez désormais me poser vos questions ou me demander un quiz sur le cours !`, 
+            text: `Enchantée ! Je vous ai créé le profil **${profile.id}**. Commençons !`, 
             timestamp: new Date() 
           });
           setIsLoading(false);
@@ -200,7 +197,6 @@ export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruc
       }
     }
 
-    // Message standard
     const currentFile = attachedFile;
     const displayMsgText = attachedFile ? `[Fichier joint : ${attachedFile.name}]\n${text}` : text;
 
@@ -217,8 +213,8 @@ export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruc
 
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const profileInfo = currentProfile ? `\n\nÉTUDIANT ACTUEL : ${currentProfile.id}. Historique des scores : ${JSON.stringify(currentProfile.scores)}` : "";
-      const fullSystemInstruction = `${systemInstruction || SYSTEM_INSTRUCTION}${profileInfo}\n\nCONTEXTE DU COURS :\n${courseContent}`;
+      const profileInfo = currentProfile ? `\n\nÉTUDIANT : ${currentProfile.id}. HISTORIQUE SCORES : ${JSON.stringify(currentProfile.scores)}` : "";
+      const fullSystemInstruction = `${systemInstruction || SYSTEM_INSTRUCTION}${profileInfo}\n\nCOURS :\n${courseContent}`;
       
       const contents = (activeSession?.messages || []).map(m => ({
         role: m.role,
@@ -237,7 +233,7 @@ export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruc
         config: { systemInstruction: fullSystemInstruction }
       });
 
-      const aiText = response.text || "Je n'ai pas pu formuler de réponse.";
+      const aiText = response.text || "Désolée, une erreur est survenue.";
       const scoreMatch = aiText.match(/\[SCORE:(\d+)\/(\d+)\|TYPE:(.*?)\]/);
       
       if (scoreMatch && currentProfile) {
@@ -273,12 +269,15 @@ export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruc
             const choiceLabel = quizMatch[1].trim();
             const isSelected = selectedOption === choiceLabel || (disambiguationOptions.length > 0 && disambiguationOptions.includes(choiceLabel));
             
+            // Logique visuelle spéciale pour OUI/NON ou Suite
+            const isNavButton = choiceLabel.toLowerCase().includes("oui") || choiceLabel.toLowerCase().includes("prêt") || choiceLabel.toLowerCase().includes("suite");
+            
             return (
               <button
                 key={i}
                 disabled={isLoading || (!!selectedOption && disambiguationOptions.length === 0)}
                 onClick={() => sendMessage(choiceLabel, msgIndex, choiceLabel)}
-                className={`flex items-center gap-3 w-full max-w-sm py-2 px-4 my-1.5 rounded-xl border-2 text-left transition-all group ${isSelected ? `bg-[#ad5c51]/10 ${colors.text} border-[#ad5c51] shadow-sm scale-[1.01]` : 'bg-white dark:bg-slate-700 border-slate-100 dark:border-slate-600 hover:border-slate-300 dark:hover:border-slate-500 text-slate-700 dark:text-slate-200'}`}
+                className={`flex items-center gap-3 w-full max-w-sm py-2.5 px-4 my-2 rounded-xl border-2 text-left transition-all group ${isSelected ? `bg-[#ad5c51]/10 ${colors.text} border-[#ad5c51] shadow-sm scale-[1.01]` : 'bg-white dark:bg-slate-700 border-slate-100 dark:border-slate-600 hover:border-slate-300 dark:hover:border-slate-500 text-slate-700 dark:text-slate-200'} ${isNavButton && !isSelected ? 'border-amber-200 bg-amber-50/30' : ''}`}
               >
                 <div className={`flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${isSelected ? 'border-[#ad5c51] bg-[#ad5c51] text-white' : 'border-slate-300 dark:border-slate-500 bg-slate-50 dark:bg-slate-800'}`}>
                   {isSelected ? <CheckCircle2 size={12} strokeWidth={3} /> : <Circle size={12} className="text-transparent group-hover:text-slate-300" />}
@@ -298,7 +297,6 @@ export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruc
 
   return (
     <div className="flex h-full max-w-6xl mx-auto w-full bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden relative">
-      {/* Sidebar logic is standard as per user files */}
       <div className={`absolute inset-y-0 left-0 z-30 flex flex-col w-72 bg-slate-50 dark:bg-slate-950 border-r border-slate-200 dark:border-slate-800 transition-transform duration-300 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex flex-col gap-4">
           <div className="flex items-center justify-between">
