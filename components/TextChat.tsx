@@ -130,7 +130,7 @@ export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruc
        setTimeout(() => {
          addMessageToSession(activeSessionId, { 
            role: 'model', 
-           text: "C'est une excellente idée ! Mais avant de commencer les révisions, j'ai besoin de connaître votre **prénom**. Cela me permet de créer votre dossier étudiant et de suivre vos progrès.", 
+           text: "C'est une excellente idée ! Mais avant de commencer, j'ai besoin de connaître votre **prénom**. Cela me permet de créer votre dossier étudiant et de suivre vos progrès.", 
            timestamp: new Date() 
          });
          setIsLoading(false);
@@ -146,7 +146,7 @@ export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruc
         setDisambiguationOptions([]);
         setIsLoading(true);
         setTimeout(() => {
-          addMessageToSession(activeSessionId, { role: 'model', text: `Bienvenue **${profile.id}**. Votre dossier est créé. Prêt à tester vos connaissances sur le droit administratif ?`, timestamp: new Date() });
+          addMessageToSession(activeSessionId, { role: 'model', text: `Bienvenue **${profile.id}**. Votre dossier est créé. Prêt pour nos révisions ?`, timestamp: new Date() });
           setIsLoading(false);
         }, 600);
       } else {
@@ -155,7 +155,7 @@ export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruc
         setDisambiguationOptions([]);
         setIsLoading(true);
         setTimeout(() => {
-          addMessageToSession(activeSessionId, { role: 'model', text: `Heureuse de vous revoir, **${overrideInput}** ! J'ai chargé votre historique. On continue ?`, timestamp: new Date() });
+          addMessageToSession(activeSessionId, { role: 'model', text: `Heureuse de vous revoir, **${overrideInput}** ! On reprend là où on s'était arrêté.`, timestamp: new Date() });
           setIsLoading(false);
         }, 600);
       }
@@ -174,7 +174,7 @@ export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruc
           const listText = options.map(o => `[ ] ${o}`).join('\n');
           addMessageToSession(activeSessionId, { 
             role: 'model', 
-            text: `Plusieurs profils correspondent à "${text}". Lequel est le vôtre ?\n${listText}`, 
+            text: `Plusieurs dossiers correspondent à "${text}". Lequel est le vôtre ?\n${listText}`, 
             timestamp: new Date() 
           });
           setIsLoading(false);
@@ -188,7 +188,7 @@ export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruc
         setTimeout(() => {
           addMessageToSession(activeSessionId, { 
             role: 'model', 
-            text: `Enchantée ! Je vous ai créé le profil **${profile.id}**. Commençons !`, 
+            text: `Enchantée ! Le profil **${profile.id}** est prêt. Posez-moi vos questions !`, 
             timestamp: new Date() 
           });
           setIsLoading(false);
@@ -246,6 +246,7 @@ export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruc
         saveScore(currentProfile.id, score);
       }
 
+      // On nettoie la balise technique invisible, mais Ada doit avoir écrit le score en clair au-dessus
       addMessageToSession(activeSessionId, {
         role: 'model',
         text: aiText.replace(/\[SCORE:.*?\]/g, ''),
@@ -269,15 +270,14 @@ export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruc
             const choiceLabel = quizMatch[1].trim();
             const isSelected = selectedOption === choiceLabel || (disambiguationOptions.length > 0 && disambiguationOptions.includes(choiceLabel));
             
-            // Logique visuelle spéciale pour OUI/NON ou Suite
-            const isNavButton = choiceLabel.toLowerCase().includes("oui") || choiceLabel.toLowerCase().includes("prêt") || choiceLabel.toLowerCase().includes("suite");
+            const isNavButton = choiceLabel.toLowerCase().includes("oui") || choiceLabel.toLowerCase().includes("prêt") || choiceLabel.toLowerCase().includes("suite") || choiceLabel.toLowerCase().includes("non");
             
             return (
               <button
                 key={i}
                 disabled={isLoading || (!!selectedOption && disambiguationOptions.length === 0)}
                 onClick={() => sendMessage(choiceLabel, msgIndex, choiceLabel)}
-                className={`flex items-center gap-3 w-full max-w-sm py-2.5 px-4 my-2 rounded-xl border-2 text-left transition-all group ${isSelected ? `bg-[#ad5c51]/10 ${colors.text} border-[#ad5c51] shadow-sm scale-[1.01]` : 'bg-white dark:bg-slate-700 border-slate-100 dark:border-slate-600 hover:border-slate-300 dark:hover:border-slate-500 text-slate-700 dark:text-slate-200'} ${isNavButton && !isSelected ? 'border-amber-200 bg-amber-50/30' : ''}`}
+                className={`flex items-center gap-3 w-full max-w-sm py-2.5 px-4 my-1.5 rounded-xl border-2 text-left transition-all group ${isSelected ? `bg-[#ad5c51]/10 ${colors.text} border-[#ad5c51] shadow-sm scale-[1.01]` : 'bg-white dark:bg-slate-700 border-slate-100 dark:border-slate-600 hover:border-slate-300 dark:hover:border-slate-500 text-slate-700 dark:text-slate-200'} ${isNavButton && !isSelected ? 'border-amber-100 bg-amber-50/20' : ''}`}
               >
                 <div className={`flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${isSelected ? 'border-[#ad5c51] bg-[#ad5c51] text-white' : 'border-slate-300 dark:border-slate-500 bg-slate-50 dark:bg-slate-800'}`}>
                   {isSelected ? <CheckCircle2 size={12} strokeWidth={3} /> : <Circle size={12} className="text-transparent group-hover:text-slate-300" />}
@@ -286,10 +286,13 @@ export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruc
               </button>
             );
           }
-          return <ReactMarkdown key={i} rehypePlugins={[rehypeRaw]} remarkPlugins={[remarkGfm]} components={{ code: ({ inline, className, children }: any) => {
-            const match = /language-(\w+)/.exec(className || '');
-            return !inline && match?.[1] === 'mermaid' ? <MermaidRenderer chart={String(children).replace(/\n$/, '')} /> : <code className={className}>{children}</code>;
-          }}}>{line}</ReactMarkdown>;
+          return <ReactMarkdown key={i} rehypePlugins={[rehypeRaw]} remarkPlugins={[remarkGfm]} components={{ 
+            code: ({ inline, className, children }: any) => {
+              const match = /language-(\w+)/.exec(className || '');
+              return !inline && match?.[1] === 'mermaid' ? <MermaidRenderer chart={String(children).replace(/\n$/, '')} /> : <code className={className}>{children}</code>;
+            },
+            pre: ({ children }: any) => <div className="not-prose">{children}</div> // Évite le style code block Markdown sur les puces indentées par erreur
+          }}>{line}</ReactMarkdown>;
         })}
       </div>
     );
