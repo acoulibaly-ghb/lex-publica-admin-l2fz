@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { ChatSession, ChatMessage, StudentProfile, ScoreRecord } from '../types';
 
 const STORAGE_KEY = 'droit_public_sessions';
@@ -59,7 +58,7 @@ export const useChatStore = () => {
     return newSession.id;
   };
 
-  const deleteSession = (id: string, e?: React.MouseEvent) => {
+  const deleteSession = (id: string, e?: any) => {
     e?.stopPropagation();
     const newSessions = sessions.filter(s => s.id !== id);
     setSessions(newSessions);
@@ -67,10 +66,6 @@ export const useChatStore = () => {
       if (newSessions.length > 0) setActiveSessionId(newSessions[0].id);
       else createNewSession();
     }
-  };
-
-  const renameSession = (id: string, newTitle: string) => {
-    setSessions(prev => prev.map(s => s.id === id ? { ...s, title: newTitle } : s));
   };
 
   const addMessageToSession = (sessionId: string, message: ChatMessage) => {
@@ -102,8 +97,6 @@ export const useChatStore = () => {
     }));
   };
 
-  // --- Logique des Profils ---
-  
   const findProfilesByName = (name: string) => {
     return profiles.filter(p => p.name.toLowerCase() === name.trim().toLowerCase());
   };
@@ -146,7 +139,6 @@ export const useChatStore = () => {
     setActiveSessionId,
     createNewSession,
     deleteSession,
-    renameSession,
     addMessageToSession,
     selectOptionInMessage,
     findProfilesByName,
