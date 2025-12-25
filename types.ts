@@ -1,8 +1,20 @@
-
 export interface AttachedFile {
   name: string;
   data: string;
   mimeType: string;
+}
+
+export interface ScoreRecord {
+  quizType: string;
+  score: number;
+  total: number;
+  date: number;
+}
+
+export interface StudentProfile {
+  id: string; // Format: Nom-123
+  name: string;
+  scores: ScoreRecord[];
 }
 
 export interface ChatMessage {
@@ -11,14 +23,14 @@ export interface ChatMessage {
   timestamp: Date;
   isError?: boolean;
   file?: AttachedFile;
-  selectedOption?: string; // Persistance du choix de quiz
+  selectedOption?: string; // Persistance du choix de quiz ou d'identité
 }
 
 export interface ChatSession {
   id: string;
   title: string;
   messages: ChatMessage[];
-  updatedAt: number; // Timestamp for sorting
+  updatedAt: number;
 }
 
 export enum AppMode {
