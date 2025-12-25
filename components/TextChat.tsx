@@ -260,7 +260,10 @@ export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruc
   };
 
   const MessageRenderer = ({ text, msgIndex, role, selectedOption }: { text: string, msgIndex: number, role: string, selectedOption?: string }) => {
-    if (role === 'user') return <ReactMarkdown rehypePlugins={[rehypeRaw]} remarkPlugins={[remarkGfm]}>{text}</ReactMarkdown>;
+    const mdPlugins = { rehypePlugins: [rehypeRaw], remarkPlugins: [remarkGfm] };
+    
+    if (role === 'user') return <ReactMarkdown {...mdPlugins}>{text}</ReactMarkdown>;
+    
     const lines = text.split('\n');
     return (
       <div className="space-y-2">
@@ -277,21 +280,23 @@ export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruc
                 key={i}
                 disabled={isLoading || (!!selectedOption && disambiguationOptions.length === 0)}
                 onClick={() => sendMessage(choiceLabel, msgIndex, choiceLabel)}
-                className={`flex items-center gap-3 w-full max-w-sm py-2.5 px-4 my-1.5 rounded-xl border-2 text-left transition-all group ${isSelected ? `bg-[#ad5c51]/10 ${colors.text} border-[#ad5c51] shadow-sm scale-[1.01]` : 'bg-white dark:bg-slate-700 border-slate-100 dark:border-slate-600 hover:border-slate-300 dark:hover:border-slate-500 text-slate-700 dark:text-slate-200'} ${isNavButton && !isSelected ? 'border-amber-100 bg-amber-50/20' : ''}`}
+                className={`flex items-center gap-3 w-full max-w-xl py-2.5 px-4 my-1.5 rounded-xl border-2 text-left transition-all group ${isSelected ? `bg-[#ad5c51]/10 ${colors.text} border-[#ad5c51] shadow-sm scale-[1.01]` : 'bg-white dark:bg-slate-700 border-slate-100 dark:border-slate-600 hover:border-slate-300 dark:hover:border-slate-500 text-slate-700 dark:text-slate-200'} ${isNavButton && !isSelected ? 'border-amber-100 bg-amber-50/20' : ''}`}
               >
                 <div className={`flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${isSelected ? 'border-[#ad5c51] bg-[#ad5c51] text-white' : 'border-slate-300 dark:border-slate-500 bg-slate-50 dark:bg-slate-800'}`}>
                   {isSelected ? <CheckCircle2 size={12} strokeWidth={3} /> : <Circle size={12} className="text-transparent group-hover:text-slate-300" />}
                 </div>
-                <span className={`font-semibold text-sm flex-1 ${isSelected ? 'text-[#ad5c51]' : ''}`}>{choiceLabel}</span>
+                <div className={`font-semibold text-sm flex-1 overflow-hidden pointer-events-none ${isSelected ? 'text-[#ad5c51]' : ''}`}>
+                   <ReactMarkdown {...mdPlugins} components={{ p: ({children}) => <span className="m-0 p-0">{children}</span> }}>{choiceLabel}</ReactMarkdown>
+                </div>
               </button>
             );
           }
-          return <ReactMarkdown key={i} rehypePlugins={[rehypeRaw]} remarkPlugins={[remarkGfm]} components={{ 
+          return <ReactMarkdown key={i} {...mdPlugins} components={{ 
             code: ({ inline, className, children }: any) => {
               const match = /language-(\w+)/.exec(className || '');
               return !inline && match?.[1] === 'mermaid' ? <MermaidRenderer chart={String(children).replace(/\n$/, '')} /> : <code className={className}>{children}</code>;
             },
-            pre: ({ children }: any) => <div className="not-prose">{children}</div> // Évite le style code block Markdown sur les puces indentées par erreur
+            pre: ({ children }: any) => <div className="not-prose">{children}</div>
           }}>{line}</ReactMarkdown>;
         })}
       </div>
