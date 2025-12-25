@@ -1,13 +1,17 @@
+
+export interface AttachedFile {
+  name: string;
+  data: string;
+  mimeType: string;
+}
+
 export interface ChatMessage {
   role: 'user' | 'model';
   text: string;
   timestamp: Date;
   isError?: boolean;
-  file?: {
-    name: string;
-    data: string;
-    mimeType: string;
-  };
+  file?: AttachedFile;
+  selectedOption?: string; // Persistance du choix de quiz
 }
 
 export interface ChatSession {
