@@ -81,7 +81,7 @@ export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruc
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
   
-  // ÉTAT DE PERSISTANCE : Mémorise quel choix a été fait pour quel message (SessionID + Index)
+  // Ã‰TAT DE PERSISTANCE : MÃ©morise quel choix a Ã©tÃ© fait pour quel message (SessionID + Index)
   const [selectedAnswers, setSelectedAnswers] = useState<Record<string, string>>({});
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -104,7 +104,7 @@ export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruc
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || file.type !== 'application/pdf') {
-      if (file) alert("Veuillez sélectionner un fichier PDF.");
+      if (file) alert("Veuillez sÃ©lectionner un fichier PDF.");
       return;
     }
     const reader = new FileReader();
@@ -121,7 +121,7 @@ export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruc
     const text = textToSend.trim();
     if ((!text && !attachedFile) || isLoading || !activeSessionId) return;
 
-    // Si on clique sur un choix de quiz, on mémorise la réponse pour ce message précis
+    // Si on clique sur un choix de quiz, on mÃ©morise la rÃ©ponse pour ce message prÃ©cis
     if (quizMsgIndex !== undefined && choiceLabel) {
       const key = `${activeSessionId}-${quizMsgIndex}`;
       setSelectedAnswers(prev => ({ ...prev, [key]: choiceLabel }));
@@ -158,14 +158,14 @@ export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruc
       contents.push({ role: 'user', parts: userParts });
 
       const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
+        model: 'gemini-2.5-flash',
         contents,
         config: { systemInstruction: fullSystemInstruction }
       });
 
       addMessageToSession(activeSessionId, {
         role: 'model',
-        text: response.text || "Je n'ai pas pu formuler de réponse.",
+        text: response.text || "Je n'ai pas pu formuler de rÃ©ponse.",
         timestamp: new Date()
       });
     } catch (error: any) {
@@ -183,7 +183,7 @@ export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruc
 
   /**
    * MessageRenderer : Analyse le texte du message ligne par ligne.
-   * Si une ligne commence par [ ], elle est transformée en bouton de quiz.
+   * Si une ligne commence par [ ], elle est transformÃ©e en bouton de quiz.
    */
   const MessageRenderer = ({ text, msgIndex, role }: { text: string, msgIndex: number, role: string }) => {
     if (role === 'user') {
@@ -197,7 +197,7 @@ export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruc
     return (
       <div className="space-y-2">
         {lines.map((line, i) => {
-          // Détection des options de Quiz [ ]
+          // DÃ©tection des options de Quiz [ ]
           const quizMatch = line.match(/^\[\s*\]\s*(.*)/);
           if (quizMatch) {
             const choiceLabel = quizMatch[1].trim();
@@ -252,12 +252,12 @@ export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruc
     let prompt = "";
     switch (action) {
       case 'explication': prompt = "Expliquez-moi simplement la notion suivante :"; break;
-      case 'dissertation': prompt = "Propose-moi un sujet de dissertation et un plan détaillé (I. II.) basé sur un ou plusieurs thèmes du cours que je vais t'indiquer."; break;
-      case 'cas': prompt = "Soumets-moi un petit cas pratique sur un ou plusieurs thèmes du cours que je vais t'indiquer."; break;
-      case 'qcm': prompt = "Génère successivement un QCM de 3 questions sur un ou plusieurs thèmes du cours que je vais t'indiquer."; break;
-      case 'vraifaux': prompt = "Propose-moi successivement 3 affirmations Vrai/Faux sur un ou plusieurs thèmes du cours que je vais t'indiquer."; break;
-      case 'arretsdefin': prompt = "Listez les arrêts liés à des définitions, SVP."; break;
-      case 'arretscles': prompt = "Listez les arrêts liés à des notions clés, SVP."; break;
+      case 'dissertation': prompt = "Propose-moi un sujet de dissertation et un plan dÃ©taillÃ© (I. II.) basÃ© sur un ou plusieurs thÃ¨mes du cours que je vais t'indiquer."; break;
+      case 'cas': prompt = "Soumets-moi un petit cas pratique sur un ou plusieurs thÃ¨mes du cours que je vais t'indiquer."; break;
+      case 'qcm': prompt = "GÃ©nÃ¨re successivement un QCM de 3 questions sur un ou plusieurs thÃ¨mes du cours que je vais t'indiquer."; break;
+      case 'vraifaux': prompt = "Propose-moi successivement 3 affirmations Vrai/Faux sur un ou plusieurs thÃ¨mes du cours que je vais t'indiquer."; break;
+      case 'arretsdefin': prompt = "Listez les arrÃªts liÃ©s Ã  des dÃ©finitions, SVP."; break;
+      case 'arretscles': prompt = "Listez les arrÃªts liÃ©s Ã  des notions clÃ©s, SVP."; break;
     }
     if (prompt) sendMessage(prompt);
   };
@@ -274,7 +274,7 @@ export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruc
       <div className={`absolute inset-y-0 left-0 z-30 flex flex-col w-72 bg-slate-50 dark:bg-slate-950 border-r border-slate-200 dark:border-slate-800 transition-transform duration-300 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex flex-col gap-4">
           <div className="flex items-center justify-between">
-            <h3 className="font-serif font-bold text-slate-700 dark:text-slate-200">Mes Révisions</h3>
+            <h3 className="font-serif font-bold text-slate-700 dark:text-slate-200">Mes RÃ©visions</h3>
             <button onClick={() => setIsSidebarOpen(false)} className="p-2 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg"><PanelLeftClose size={20} /></button>
           </div>
           <button onClick={() => { createNewSession(); setIsSidebarOpen(false); }} className={`w-full flex items-center justify-center gap-2 px-4 py-3 ${colors.primary} text-white rounded-lg font-medium shadow-md transition-all active:scale-95`}><Plus size={18} /><span>Nouvelle Session</span></button>
@@ -354,8 +354,8 @@ export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruc
             <button onClick={() => handleQuickAction('cas')} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-all whitespace-nowrap"><FileSignature size={14} /> Cas pratique</button>
             <button onClick={() => handleQuickAction('qcm')} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-amber-700 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 rounded-lg hover:bg-amber-100 transition-all whitespace-nowrap"><Search size={14} /> QCM</button>
             <button onClick={() => handleQuickAction('vraifaux')} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-rose-700 bg-rose-50 dark:bg-rose-900/30 border border-rose-200 rounded-lg hover:bg-rose-100 transition-all whitespace-nowrap"><BookOpen size={14} /> Vrai/Faux</button>
-            <button onClick={() => handleQuickAction('arretsdefin')} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-purple-700 bg-purple-50 dark:bg-purple-900/30 border border-purple-200 rounded-lg hover:bg-purple-100 transition-all whitespace-nowrap"><Gavel size={14} /> Arrêts & définitions</button>
-            <button onClick={() => handleQuickAction('arretscles')} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-cyan-700 bg-cyan-50 dark:bg-cyan-900/30 border border-cyan-200 rounded-lg hover:bg-cyan-100 transition-all whitespace-nowrap"><Layout size={14} /> Arrêts & notions clés</button>
+            <button onClick={() => handleQuickAction('arretsdefin')} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-purple-700 bg-purple-50 dark:bg-purple-900/30 border border-purple-200 rounded-lg hover:bg-purple-100 transition-all whitespace-nowrap"><Gavel size={14} /> ArrÃªts & dÃ©finitions</button>
+            <button onClick={() => handleQuickAction('arretscles')} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-cyan-700 bg-cyan-50 dark:bg-cyan-900/30 border border-cyan-200 rounded-lg hover:bg-cyan-100 transition-all whitespace-nowrap"><Layout size={14} /> ArrÃªts & notions clÃ©s</button>
           </div>
           {attachedFile && (
             <div className={`mb-3 flex items-center gap-3 p-2.5 ${colors.bg} dark:bg-slate-800 ${colors.border} border rounded-xl animate-in fade-in`}>
@@ -390,18 +390,18 @@ export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruc
                 <div className="p-2 bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded-lg">
                   <Lightbulb size={24} />
                 </div>
-                <h3 className="font-serif font-bold text-lg text-slate-800 dark:text-white">Guide de démarrage</h3>
+                <h3 className="font-serif font-bold text-lg text-slate-800 dark:text-white">Guide de dÃ©marrage</h3>
               </div>
               <button onClick={() => setIsHelpOpen(false)} className="text-slate-400 hover:text-slate-600 p-2 rounded-full transition-colors"><X size={20} /></button>
             </div>
             <div className="p-6 overflow-y-auto space-y-6 text-sm text-slate-600 dark:text-slate-400">
               <section className="space-y-2">
                 <h4 className={`font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2`}><Paperclip size={18} className={colors.text} /> Analyse de Documents</h4>
-                <p>Utilisez le trombone pour joindre un document PDF (un arrêt par exemple). L'IA l'analysera avec vous.</p>
+                <p>Utilisez le trombone pour joindre un document PDF (un arrÃªt par exemple). L'IA l'analysera avec vous.</p>
               </section>
               <section className="space-y-2">
                 <h4 className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2"><Layout size={18} className={colors.text} /> Quiz Interactifs</h4>
-                <p>Lors d'un quiz, cliquez simplement sur les options "Vrai" ou "Faux". Votre choix sera mémorisé visuellement dans la conversation.</p>
+                <p>Lors d'un quiz, cliquez simplement sur les options "Vrai" ou "Faux". Votre choix sera mÃ©morisÃ© visuellement dans la conversation.</p>
               </section>
             </div>
             <div className="p-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800">
@@ -413,3 +413,4 @@ export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruc
     </div>
   );
 };
+
