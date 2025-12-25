@@ -1,11 +1,9 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import {
   Send, User, Loader2, Plus, MessageSquare, X,
   PanelLeftClose, PanelLeft, Lightbulb,
-  FileText, Paperclip, Trash2, BookOpen, Gavel,
-  Layout, Search, Edit2, Scale, FileSignature,
-  CheckCircle2, Circle, Trophy, LogOut
+  FileText, Paperclip, Trash2, BookOpen, Scale, 
+  FileSignature, CheckCircle2, Circle, Trophy, LogOut, Search
 } from 'lucide-react';
 import { GoogleGenAI } from '@google/genai';
 import ReactMarkdown from 'react-markdown';
@@ -45,12 +43,12 @@ interface TextChatProps {
   themeColor?: string;
 }
 
-const colorMap: Record<string, { primary: string, hover: string, bg: string, text: string, border: string, ring: string }> = {
-  blue: { primary: 'bg-blue-700', hover: 'hover:bg-blue-800', bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200', ring: 'ring-blue-500' },
-  emerald: { primary: 'bg-emerald-700', hover: 'hover:bg-emerald-800', bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', ring: 'ring-emerald-500' },
-  indigo: { primary: 'bg-indigo-700', hover: 'hover:bg-indigo-800', bg: 'bg-indigo-50', text: 'text-indigo-700', border: 'border-indigo-200', ring: 'ring-indigo-500' },
-  rose: { primary: 'bg-[#ad5c51]', hover: 'hover:bg-[#914a41]', bg: 'bg-[#fff5f4]', text: 'text-[#ad5c51]', border: 'border-[#f2d8d5]', ring: 'ring-[#ad5c51]' },
-  amber: { primary: 'bg-amber-700', hover: 'hover:bg-amber-800', bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', ring: 'ring-amber-500' },
+const colorMap: Record<string, { primary: string, hover: string, text: string }> = {
+  blue: { primary: 'bg-blue-700', hover: 'hover:bg-blue-800', text: 'text-blue-700' },
+  emerald: { primary: 'bg-emerald-700', hover: 'hover:bg-emerald-800', text: 'text-emerald-700' },
+  indigo: { primary: 'bg-indigo-700', hover: 'hover:bg-indigo-800', text: 'text-indigo-700' },
+  rose: { primary: 'bg-[#ad5c51]', hover: 'hover:bg-[#914a41]', text: 'text-[#ad5c51]' },
+  amber: { primary: 'bg-amber-700', hover: 'hover:bg-amber-800', text: 'text-amber-700' },
 };
 
 export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruction, apiKey, themeColor = 'blue' }) => {
@@ -59,7 +57,6 @@ export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruc
     setActiveSessionId,
     createNewSession,
     deleteSession,
-    renameSession,
     addMessageToSession,
     selectOptionInMessage,
     findProfilesByName,
@@ -114,7 +111,6 @@ export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruc
     const text = textToSend.trim();
     if ((!text && !attachedFile) || isLoading || !activeSessionId) return;
 
-    // Gestion de la sélection interactive (Quiz ou Homonymes)
     if (quizMsgIndex !== undefined && choiceLabel) {
       selectOptionInMessage(activeSessionId, quizMsgIndex, choiceLabel);
     }
@@ -123,7 +119,7 @@ export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruc
     const lastMsg = activeSession?.messages[activeSession.messages.length - 1];
     const isAwaitingName = lastMsg?.text.toLowerCase().includes("prénom") || lastMsg?.text.toLowerCase().includes("pseudo");
 
-    // A. L'utilisateur a cliqué sur un choix d'homonyme
+    // Cas d'homonymes : l'utilisateur choisit son profil précis
     if (disambiguationOptions.length > 0 && overrideInput) {
       if (overrideInput.startsWith("Nouveau : ")) {
         const name = overrideInput.replace("Nouveau : ", "");
@@ -132,27 +128,26 @@ export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruc
         setDisambiguationOptions([]);
         setIsLoading(true);
         setTimeout(() => {
-          addMessageToSession(activeSessionId, { role: 'model', text: `Bienvenue, <span style="color: #ad5c51; font-weight: bold;">${profile.id}</span>. Un nouveau profil a été créé pour éviter toute confusion. Commençons le test !`, timestamp: new Date() });
+          addMessageToSession(activeSessionId, { role: 'model', text: `Parfait, bienvenue **${profile.id}**. Un nouveau profil a été créé. Commençons le test !`, timestamp: new Date() });
           setIsLoading(false);
         }, 600);
       } else {
         loginToProfile(overrideInput);
-        addMessageToSession(activeSessionId, { role: 'user', text, timestamp: new Date() });
+        addMessageToSession(activeSessionId, { role: 'user', text: overrideInput, timestamp: new Date() });
         setDisambiguationOptions([]);
         setIsLoading(true);
         setTimeout(() => {
-          addMessageToSession(activeSessionId, { role: 'model', text: `Ravie de vous retrouver, <span style="color: #ad5c51; font-weight: bold;">${overrideInput}</span> !`, timestamp: new Date() });
+          addMessageToSession(activeSessionId, { role: 'model', text: `Ravie de vous retrouver, <span style="color: #ad5c51; font-weight: bold;">${overrideInput}</span> ! Vos notes ont été synchronisées.`, timestamp: new Date() });
           setIsLoading(false);
         }, 600);
       }
       return;
     }
 
-    // B. L'utilisateur vient de taper son nom pour la première fois
+    // Premier message de nom : Ada vérifie s'il y a des homonymes
     if (isAwaitingName && !currentProfile && !overrideInput) {
       const matches = findProfilesByName(text);
       if (matches.length > 0) {
-        // Ada propose les choix d'homonymes
         const options = [...matches.map(m => m.id), `Nouveau : ${text}`];
         setDisambiguationOptions(options);
         addMessageToSession(activeSessionId, { role: 'user', text, timestamp: new Date() });
@@ -162,14 +157,13 @@ export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruc
           const listText = options.map(o => `[ ] ${o}`).join('\n');
           addMessageToSession(activeSessionId, { 
             role: 'model', 
-            text: `J'ai trouvé plusieurs profils pour "${text}". Pourriez-vous me confirmer lequel est le vôtre afin que je retrouve vos notes ?\n${listText}`, 
+            text: `J'ai trouvé plusieurs profils pour "${text}". Pourriez-vous me confirmer lequel est le vôtre ?\n${listText}`, 
             timestamp: new Date() 
           });
           setIsLoading(false);
         }, 600);
         return;
       } else {
-        // Création directe si aucun homonyme
         const profile = createNewProfile(text);
         addMessageToSession(activeSessionId, { role: 'user', text, timestamp: new Date() });
         setInput('');
@@ -177,7 +171,7 @@ export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruc
         setTimeout(() => {
           addMessageToSession(activeSessionId, { 
             role: 'model', 
-            text: `Enchantée ! Je vous ai créé le profil <span style="color: #ad5c51; font-weight: bold;">${profile.id}</span> (le code évite les confusions avec d'autres étudiants). À présent, commençons les révisions !`, 
+            text: `Enchantée ! Je vous ai créé le profil **${profile.id}**. C'est parti pour les révisions !`, 
             timestamp: new Date() 
           });
           setIsLoading(false);
@@ -186,7 +180,7 @@ export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruc
       }
     }
 
-    // C. Envoi classique de message
+    // Message standard
     const currentFile = attachedFile;
     const displayMsgText = attachedFile ? `[Fichier joint : ${attachedFile.name}]\n${text}` : text;
 
@@ -202,8 +196,9 @@ export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruc
     setIsLoading(true);
 
     try {
+      // Fix: API key used in GoogleGenAI constructor
       const ai = new GoogleGenAI({ apiKey });
-      const profileInfo = currentProfile ? `\n\nÉTUDIANT ACTUEL : ${currentProfile.id}. Historique des scores (pour bilan) : ${JSON.stringify(currentProfile.scores)}` : "";
+      const profileInfo = currentProfile ? `\n\nÉTUDIANT ACTUEL : ${currentProfile.id}. Historique des scores : ${JSON.stringify(currentProfile.scores)}` : "";
       const fullSystemInstruction = `${systemInstruction || SYSTEM_INSTRUCTION}${profileInfo}\n\nCONTEXTE DU COURS :\n${courseContent}`;
       
       const contents = (activeSession?.messages || []).map(m => ({
@@ -223,10 +218,10 @@ export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruc
         config: { systemInstruction: fullSystemInstruction }
       });
 
+      // Fix: response.text is a property
       const aiText = response.text || "Je n'ai pas pu formuler de réponse.";
-      
-      // Extraction et sauvegarde automatique du score
       const scoreMatch = aiText.match(/\[SCORE:(\d+)\/(\d+)\|TYPE:(.*?)\]/);
+      
       if (scoreMatch && currentProfile) {
         const score: ScoreRecord = {
           score: parseInt(scoreMatch[1]),
@@ -239,7 +234,7 @@ export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruc
 
       addMessageToSession(activeSessionId, {
         role: 'model',
-        text: aiText.replace(/\[SCORE:.*?\]/g, ''), // Nettoyage de la balise invisible
+        text: aiText.replace(/\[SCORE:.*?\]/g, ''),
         timestamp: new Date()
       });
     } catch (error: any) {
@@ -285,7 +280,6 @@ export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruc
 
   return (
     <div className="flex h-full max-w-6xl mx-auto w-full bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden relative">
-      {/* Sidebar Sidebar Logic */}
       <div className={`absolute inset-y-0 left-0 z-30 flex flex-col w-72 bg-slate-50 dark:bg-slate-950 border-r border-slate-200 dark:border-slate-800 transition-transform duration-300 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex flex-col gap-4">
           <div className="flex items-center justify-between">
@@ -385,17 +379,13 @@ export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruc
         <div className="absolute inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm">
           <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[90%] overflow-hidden border border-slate-200 dark:border-slate-700">
             <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-              <h3 className="font-serif font-bold text-lg">Profil & Tutorat</h3>
+              <h3 className="font-serif font-bold text-lg">Aide & Profils</h3>
               <button onClick={() => setIsHelpOpen(false)} className="text-slate-400 hover:text-slate-600 p-2 rounded-full"><X size={20} /></button>
             </div>
             <div className="p-6 overflow-y-auto space-y-6 text-sm text-slate-600 dark:text-slate-400">
               <section className="space-y-2">
-                <h4 className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2"><User size={18} className={colors.text} /> Gestion des Homonymes</h4>
-                <p>Si plusieurs étudiants utilisent le même prénom sur cet appareil, Ada affichera les codes (ex: Thomas-123, Thomas-125) pour que chacun retrouve sa propre mémoire d'apprentissage et ses propres notes.</p>
-              </section>
-              <section className="space-y-2">
-                <h4 className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2"><Trophy size={18} className={colors.text} /> Suivi de progression</h4>
-                <p>Vos scores aux quiz sont enregistrés dans votre profil. Cliquez sur "Ma progression" pour qu'Ada analyse votre évolution dans le temps.</p>
+                <h4 className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2"><User size={18} className={colors.text} /> Identification précise</h4>
+                <p>En cas d'homonymes (ex: deux "Thomas"), Ada affichera les codes uniques pour que chacun retrouve ses propres notes de révision.</p>
               </section>
             </div>
           </div>
