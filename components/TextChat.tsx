@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import {
   Send, User, Loader2, Plus, MessageSquare, X,
@@ -119,6 +120,25 @@ export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruc
     const lastMsg = activeSession?.messages[activeSession.messages.length - 1];
     const isAwaitingName = lastMsg?.text.toLowerCase().includes("prénom") || lastMsg?.text.toLowerCase().includes("pseudo");
 
+    // SÉCURITÉ : Interception des demandes de quiz avant identification
+    const lowerText = text.toLowerCase();
+    const isRequestingQuiz = lowerText.includes("quiz") || lowerText.includes("test") || lowerText.includes("qcm") || lowerText.includes("vrai/faux") || lowerText.includes("affirmation");
+    
+    if (!currentProfile && !isAwaitingName && isRequestingQuiz && !overrideInput) {
+       addMessageToSession(activeSessionId, { role: 'user', text, timestamp: new Date() });
+       setInput('');
+       setIsLoading(true);
+       setTimeout(() => {
+         addMessageToSession(activeSessionId, { 
+           role: 'model', 
+           text: "C'est une excellente idée pour tester vos connaissances ! Mais avant, pourrais-je connaître votre **prénom** ? Je dois vous identifier pour pouvoir enregistrer votre progression.", 
+           timestamp: new Date() 
+         });
+         setIsLoading(false);
+       }, 600);
+       return;
+    }
+
     // Cas d'homonymes : l'utilisateur choisit son profil précis
     if (disambiguationOptions.length > 0 && overrideInput) {
       if (overrideInput.startsWith("Nouveau : ")) {
@@ -128,7 +148,7 @@ export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruc
         setDisambiguationOptions([]);
         setIsLoading(true);
         setTimeout(() => {
-          addMessageToSession(activeSessionId, { role: 'model', text: `Parfait, bienvenue **${profile.id}**. Un nouveau profil a été créé. Commençons le test !`, timestamp: new Date() });
+          addMessageToSession(activeSessionId, { role: 'model', text: `Parfait, bienvenue **${profile.id}**. Un nouveau profil a été créé. Comment souhaitez-vous réviser aujourd'hui ?`, timestamp: new Date() });
           setIsLoading(false);
         }, 600);
       } else {
@@ -137,7 +157,7 @@ export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruc
         setDisambiguationOptions([]);
         setIsLoading(true);
         setTimeout(() => {
-          addMessageToSession(activeSessionId, { role: 'model', text: `Ravie de vous retrouver, <span style="color: #ad5c51; font-weight: bold;">${overrideInput}</span> ! Vos notes ont été synchronisées.`, timestamp: new Date() });
+          addMessageToSession(activeSessionId, { role: 'model', text: `Ravie de vous retrouver, **${overrideInput}** ! Vos notes ont été synchronisées. Prêt pour une nouvelle séance ?`, timestamp: new Date() });
           setIsLoading(false);
         }, 600);
       }
@@ -157,7 +177,7 @@ export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruc
           const listText = options.map(o => `[ ] ${o}`).join('\n');
           addMessageToSession(activeSessionId, { 
             role: 'model', 
-            text: `J'ai trouvé plusieurs profils pour "${text}". Pourriez-vous me confirmer lequel est le vôtre ?\n${listText}`, 
+            text: `J'ai trouvé plusieurs profils pour "${text}". Pourriez-vous me confirmer lequel est le vôtre afin de reprendre votre suivi ?\n${listText}`, 
             timestamp: new Date() 
           });
           setIsLoading(false);
@@ -171,7 +191,7 @@ export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruc
         setTimeout(() => {
           addMessageToSession(activeSessionId, { 
             role: 'model', 
-            text: `Enchantée ! Je vous ai créé le profil **${profile.id}**. C'est parti pour les révisions !`, 
+            text: `Enchantée ! Je vous ai créé le profil **${profile.id}**. Vous pouvez désormais me poser vos questions ou me demander un quiz sur le cours !`, 
             timestamp: new Date() 
           });
           setIsLoading(false);
@@ -196,8 +216,7 @@ export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruc
     setIsLoading(true);
 
     try {
-      // Fix: API key used in GoogleGenAI constructor
-      const ai = new GoogleGenAI({ apiKey });
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const profileInfo = currentProfile ? `\n\nÉTUDIANT ACTUEL : ${currentProfile.id}. Historique des scores : ${JSON.stringify(currentProfile.scores)}` : "";
       const fullSystemInstruction = `${systemInstruction || SYSTEM_INSTRUCTION}${profileInfo}\n\nCONTEXTE DU COURS :\n${courseContent}`;
       
@@ -218,7 +237,6 @@ export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruc
         config: { systemInstruction: fullSystemInstruction }
       });
 
-      // Fix: response.text is a property
       const aiText = response.text || "Je n'ai pas pu formuler de réponse.";
       const scoreMatch = aiText.match(/\[SCORE:(\d+)\/(\d+)\|TYPE:(.*?)\]/);
       
@@ -280,6 +298,7 @@ export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruc
 
   return (
     <div className="flex h-full max-w-6xl mx-auto w-full bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden relative">
+      {/* Sidebar logic is standard as per user files */}
       <div className={`absolute inset-y-0 left-0 z-30 flex flex-col w-72 bg-slate-50 dark:bg-slate-950 border-r border-slate-200 dark:border-slate-800 transition-transform duration-300 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex flex-col gap-4">
           <div className="flex items-center justify-between">
