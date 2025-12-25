@@ -14,6 +14,7 @@ import remarkGfm from 'remark-gfm';
 import mermaid from 'mermaid';
 import { SYSTEM_INSTRUCTION } from '../constants';
 import { useChatStore } from '../hooks/useChatStore';
+import { AttachedFile } from '../types';
 
 mermaid.initialize({
   startOnLoad: true,
@@ -47,12 +48,6 @@ interface TextChatProps {
   themeColor?: string;
 }
 
-interface AttachedFile {
-  name: string;
-  data: string;
-  mimeType: string;
-}
-
 const colorMap: Record<string, { primary: string, hover: string, bg: string, text: string, border: string, ring: string }> = {
   blue: { primary: 'bg-blue-700', hover: 'hover:bg-blue-800', bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200', ring: 'ring-blue-500' },
   emerald: { primary: 'bg-emerald-700', hover: 'hover:bg-emerald-800', bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', ring: 'ring-emerald-500' },
@@ -70,6 +65,7 @@ export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruc
     deleteSession,
     renameSession,
     addMessageToSession,
+    selectOptionInMessage,
     activeSession
   } = useChatStore();
 
@@ -81,8 +77,6 @@ export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruc
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
   
-  const [selectedAnswers, setSelectedAnswers] = useState<Record<string, string>>({});
-
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -121,22 +115,20 @@ export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruc
     if ((!text && !attachedFile) || isLoading || !activeSessionId) return;
 
     if (quizMsgIndex !== undefined && choiceLabel) {
-      const key = `${activeSessionId}-${quizMsgIndex}`;
-      setSelectedAnswers(prev => ({ ...prev, [key]: choiceLabel }));
+      selectOptionInMessage(activeSessionId, quizMsgIndex, choiceLabel);
     }
 
+    const currentFile = attachedFile;
     const displayMsgText = attachedFile ? `[Fichier joint : ${attachedFile.name}]\n${text}` : text;
-    const messageFile = attachedFile ? { ...attachedFile } : undefined;
 
     addMessageToSession(activeSessionId, {
       role: 'user',
       text: displayMsgText,
       timestamp: new Date(),
-      file: messageFile
-    } as any);
+      file: currentFile || undefined
+    });
 
     setInput('');
-    const currentFile = attachedFile;
     setAttachedFile(null);
     setIsLoading(true);
 
@@ -179,14 +171,12 @@ export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruc
     }
   };
 
-  const MessageRenderer = ({ text, msgIndex, role }: { text: string, msgIndex: number, role: string }) => {
+  const MessageRenderer = ({ text, msgIndex, role, selectedOption }: { text: string, msgIndex: number, role: string, selectedOption?: string }) => {
     if (role === 'user') {
       return <ReactMarkdown rehypePlugins={[rehypeRaw]} remarkPlugins={[remarkGfm]}>{text}</ReactMarkdown>;
     }
 
     const lines = text.split('\n');
-    const msgKey = `${activeSessionId}-${msgIndex}`;
-    const storedChoice = selectedAnswers[msgKey];
 
     return (
       <div className="space-y-2">
@@ -194,15 +184,14 @@ export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruc
           const quizMatch = line.match(/^\[\s*\]\s*(.*)/);
           if (quizMatch) {
             const choiceLabel = quizMatch[1].trim();
-            const isSelected = storedChoice === choiceLabel;
+            const isSelected = selectedOption === choiceLabel;
             
-            // Correction Visuelle : Largeur maximale et opacité réduite pour le fond
             return (
               <button
                 key={i}
-                disabled={isLoading || !!storedChoice}
+                disabled={isLoading || !!selectedOption}
                 onClick={() => sendMessage(choiceLabel, msgIndex, choiceLabel)}
-                className={`flex items-center gap-3 w-full max-w-sm py-2.5 px-4 my-1.5 rounded-xl border-2 text-left transition-all group ${
+                className={`flex items-center gap-3 w-full max-w-sm py-2 px-4 my-1.5 rounded-xl border-2 text-left transition-all group ${
                   isSelected 
                     ? `bg-[#ad5c51]/10 ${colors.text} border-[#ad5c51] shadow-sm scale-[1.01]` 
                     : 'bg-white dark:bg-slate-700 border-slate-100 dark:border-slate-600 hover:border-slate-300 dark:hover:border-slate-500 text-slate-700 dark:text-slate-200'
@@ -212,7 +201,7 @@ export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruc
                   {isSelected ? <CheckCircle2 size={12} strokeWidth={3} /> : <Circle size={12} className="text-transparent group-hover:text-slate-300" />}
                 </div>
                 <span className={`font-semibold text-sm flex-1 ${isSelected ? 'text-[#ad5c51]' : ''}`}>{choiceLabel}</span>
-                {!storedChoice && (
+                {!selectedOption && (
                   <span className="text-[9px] font-bold opacity-0 group-hover:opacity-100 uppercase tracking-wider bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-slate-400">Choisir</span>
                 )}
               </button>
@@ -321,7 +310,7 @@ export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruc
                     ? `${colors.primary} text-white rounded-tr-none prose-invert`
                     : 'bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700 rounded-tl-none prose-slate dark:prose-invert'
                   }`}>
-                  <MessageRenderer text={msg.text} msgIndex={idx} role={msg.role} />
+                  <MessageRenderer text={msg.text} msgIndex={idx} role={msg.role} selectedOption={msg.selectedOption} />
                 </div>
               </div>
             </div>
