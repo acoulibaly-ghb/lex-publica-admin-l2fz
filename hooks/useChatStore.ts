@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { ChatSession, ChatMessage, StudentProfile, ScoreRecord } from '../types';
 
@@ -10,7 +11,6 @@ export const useChatStore = () => {
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [currentProfileId, setCurrentProfileId] = useState<string | null>(null);
 
-  // Chargement initial
   useEffect(() => {
     const storedSessions = localStorage.getItem(STORAGE_KEY);
     const storedProfiles = localStorage.getItem(PROFILES_KEY);
@@ -31,7 +31,6 @@ export const useChatStore = () => {
     }
   }, []);
 
-  // Persistance
   useEffect(() => {
     if (sessions.length > 0) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions));
@@ -48,7 +47,7 @@ export const useChatStore = () => {
       title: 'Nouvelle conversation',
       messages: [{
         role: 'model',
-        text: "Bonjour ! Je suis **Ada**, votre assistante virtuelle. Comment puis-je vous accompagner aujourd'hui dans vos révisions de droit administratif ?",
+        text: "Bonjour ! Je suis **Ada**, votre assistante de révision. Pour que je puisse suivre votre progression et enregistrer vos scores aux quiz, **commençons par faire connaissance : quel est votre prénom ou votre pseudo ?**",
         timestamp: new Date()
       }],
       updatedAt: Date.now()
