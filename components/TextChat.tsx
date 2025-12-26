@@ -118,35 +118,86 @@ export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruc
 
     // --- LOGIQUE D'IDENTIFICATION ---
     const lastMsg = activeSession?.messages[activeSession.messages.length - 1];
-    const isAwaitingName = lastMsg?.text.toLowerCase().includes("prénom") || lastMsg?.text.toLowerCase().includes("pseudo");
-
     const lowerText = text.toLowerCase();
-    const isRequestingQuiz = lowerText.includes("quiz") || lowerText.includes("test") || lowerText.includes("qcm") || lowerText.includes("vrai/faux") || lowerText.includes("affirmation");
     
-    if (!currentProfile && !isAwaitingName && isRequestingQuiz && !overrideInput) {
-       addMessageToSession(activeSessionId, { role: 'user', text, timestamp: new Date() });
-       setInput('');
-       setIsLoading(true);
-       setTimeout(() => {
-         addMessageToSession(activeSessionId, { 
-           role: 'model', 
-           text: "C'est une excellente idée ! Mais avant de commencer, j'ai besoin de connaître votre **prénom**. Cela me permet de créer votre dossier étudiant et de suivre vos progrès.", 
-           timestamp: new Date() 
-         });
-         setIsLoading(false);
-       }, 600);
-       return;
+    // Heuristique : est-ce une question juridique ?
+    const looksLikeQuestion = lowerText.includes("?") || lowerText.length > 25 || lowerText.includes("qu'est-ce") || lowerText.includes("pourquoi") || lowerText.includes("comment") || lowerText.includes("arrêt") || lowerText.includes("service public");
+
+    // Scénario : L'utilisateur refuse l'anonymat ou pose une question d'emblée
+    const isInitialPrompt = lastMsg?.text.includes("faire connaissance") || lastMsg?.text.includes("souhaitez-vous vous identifier");
+
+    if (isInitialPrompt && !currentProfile) {
+      if (text === "Je préfère rester anonyme" || (looksLikeQuestion && !overrideInput)) {
+        const profile = createNewProfile("Visiteur");
+        addMessageToSession(activeSessionId, { role: 'user', text, timestamp: new Date() });
+        setInput('');
+        setIsLoading(true);
+        
+        // Si c'est une question, on laisse l'IA répondre normalement après avoir créé le profil Visiteur
+        if (!looksLikeQuestion) {
+          setTimeout(() => {
+            addMessageToSession(activeSessionId, { 
+              role: 'model', 
+              text: "C'est entendu. Vous naviguez en tant que **Visiteur**. Vos scores ne seront pas sauvegardés d'une session à l'autre, mais je reste à votre entière disposition pour vos questions de Droit Public.", 
+              timestamp: new Date() 
+            });
+            setIsLoading(false);
+          }, 600);
+          return;
+        }
+        // Sinon (c'est une question), on continue vers l'appel API avec le profil visiteur actif
+      } else if (text === "Je veux bien me présenter") {
+        addMessageToSession(activeSessionId, { role: 'user', text, timestamp: new Date() });
+        setInput('');
+        setIsLoading(true);
+        setTimeout(() => {
+          addMessageToSession(activeSessionId, { 
+            role: 'model', 
+            text: "Très bien ! Quel est donc votre **prénom** ou votre pseudo ?", 
+            timestamp: new Date() 
+          });
+          setIsLoading(false);
+        }, 600);
+        return;
+      } else if (!looksLikeQuestion) {
+        // L'utilisateur a probablement tapé son nom directement
+        const matches = findProfilesByName(text);
+        if (matches.length > 0) {
+          const options = [...matches.map(m => m.id), `Nouveau : ${text}`];
+          setDisambiguationOptions(options);
+          addMessageToSession(activeSessionId, { role: 'user', text, timestamp: new Date() });
+          setInput('');
+          setIsLoading(true);
+          setTimeout(() => {
+            const listText = options.map(o => `[ ] ${o}`).join('\n');
+            addMessageToSession(activeSessionId, { role: 'model', text: `Plusieurs dossiers correspondent à "${text}". Lequel est le vôtre ?\n${listText}`, timestamp: new Date() });
+            setIsLoading(false);
+          }, 600);
+          return;
+        } else {
+          const profile = createNewProfile(text);
+          addMessageToSession(activeSessionId, { role: 'user', text, timestamp: new Date() });
+          setInput('');
+          setIsLoading(true);
+          setTimeout(() => {
+            addMessageToSession(activeSessionId, { role: 'model', text: `Enchantée, **${profile.id}** ! Votre dossier est prêt. En quoi puis-je vous éclairer aujourd'hui ?`, timestamp: new Date() });
+            setIsLoading(false);
+          }, 600);
+          return;
+        }
+      }
     }
 
+    // Gestion de la désambiguïsation
     if (disambiguationOptions.length > 0 && overrideInput) {
       if (overrideInput.startsWith("Nouveau : ")) {
         const name = overrideInput.replace("Nouveau : ", "");
         const profile = createNewProfile(name);
-        addMessageToSession(activeSessionId, { role: 'user', text, timestamp: new Date() });
+        addMessageToSession(activeSessionId, { role: 'user', text: overrideInput, timestamp: new Date() });
         setDisambiguationOptions([]);
         setIsLoading(true);
         setTimeout(() => {
-          addMessageToSession(activeSessionId, { role: 'model', text: `Bienvenue **${profile.id}**. Votre dossier est créé. Prêt pour nos révisions ?`, timestamp: new Date() });
+          addMessageToSession(activeSessionId, { role: 'model', text: `C'est noté, **${profile.id}**. Prêt pour nos révisions !`, timestamp: new Date() });
           setIsLoading(false);
         }, 600);
       } else {
@@ -155,48 +206,14 @@ export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruc
         setDisambiguationOptions([]);
         setIsLoading(true);
         setTimeout(() => {
-          addMessageToSession(activeSessionId, { role: 'model', text: `Heureuse de vous revoir, **${overrideInput}** ! On reprend là où on s'était arrêté.`, timestamp: new Date() });
+          addMessageToSession(activeSessionId, { role: 'model', text: `Heureuse de vous revoir, **${overrideInput}** !`, timestamp: new Date() });
           setIsLoading(false);
         }, 600);
       }
       return;
     }
 
-    if (isAwaitingName && !currentProfile && !overrideInput) {
-      const matches = findProfilesByName(text);
-      if (matches.length > 0) {
-        const options = [...matches.map(m => m.id), `Nouveau : ${text}`];
-        setDisambiguationOptions(options);
-        addMessageToSession(activeSessionId, { role: 'user', text, timestamp: new Date() });
-        setInput('');
-        setIsLoading(true);
-        setTimeout(() => {
-          const listText = options.map(o => `[ ] ${o}`).join('\n');
-          addMessageToSession(activeSessionId, { 
-            role: 'model', 
-            text: `Plusieurs dossiers correspondent à "${text}". Lequel est le vôtre ?\n${listText}`, 
-            timestamp: new Date() 
-          });
-          setIsLoading(false);
-        }, 600);
-        return;
-      } else {
-        const profile = createNewProfile(text);
-        addMessageToSession(activeSessionId, { role: 'user', text, timestamp: new Date() });
-        setInput('');
-        setIsLoading(true);
-        setTimeout(() => {
-          addMessageToSession(activeSessionId, { 
-            role: 'model', 
-            text: `Enchantée ! Le profil **${profile.id}** est prêt. Posez-moi vos questions !`, 
-            timestamp: new Date() 
-          });
-          setIsLoading(false);
-        }, 600);
-        return;
-      }
-    }
-
+    // Suite normale (Appel IA)
     const currentFile = attachedFile;
     const displayMsgText = attachedFile ? `[Fichier joint : ${attachedFile.name}]\n${text}` : text;
 
@@ -236,7 +253,7 @@ export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruc
       const aiText = response.text || "Désolée, une erreur est survenue.";
       const scoreMatch = aiText.match(/\[SCORE:(\d+)\/(\d+)\|TYPE:(.*?)\]/);
       
-      if (scoreMatch && currentProfile) {
+      if (scoreMatch && currentProfile && currentProfile.id !== "Visiteur") {
         const score: ScoreRecord = {
           score: parseInt(scoreMatch[1]),
           total: parseInt(scoreMatch[2]),
@@ -246,7 +263,6 @@ export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruc
         saveScore(currentProfile.id, score);
       }
 
-      // On nettoie la balise technique invisible, mais Ada doit avoir écrit le score en clair au-dessus
       addMessageToSession(activeSessionId, {
         role: 'model',
         text: aiText.replace(/\[SCORE:.*?\]/g, ''),
@@ -273,7 +289,7 @@ export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruc
             const choiceLabel = quizMatch[1].trim();
             const isSelected = selectedOption === choiceLabel || (disambiguationOptions.length > 0 && disambiguationOptions.includes(choiceLabel));
             
-            const isNavButton = choiceLabel.toLowerCase().includes("oui") || choiceLabel.toLowerCase().includes("prêt") || choiceLabel.toLowerCase().includes("suite") || choiceLabel.toLowerCase().includes("non");
+            const isNavButton = choiceLabel.toLowerCase().includes("oui") || choiceLabel.toLowerCase().includes("prêt") || choiceLabel.toLowerCase().includes("suite") || choiceLabel.toLowerCase().includes("non") || choiceLabel.toLowerCase().includes("présenter") || choiceLabel.toLowerCase().includes("anonyme");
             
             return (
               <button
@@ -394,7 +410,7 @@ export const TextChat: React.FC<TextChatProps> = ({ courseContent, systemInstruc
           <div className="relative flex items-end gap-2 bg-slate-50 dark:bg-slate-800/50 p-2 rounded-2xl border-2 border-slate-200 dark:border-slate-700">
             <button onClick={() => fileInputRef.current?.click()} className="p-3 text-slate-400 hover:text-slate-600"><Paperclip size={24} /></button>
             <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".pdf" className="hidden" />
-            <textarea ref={textareaRef} rows={1} value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), sendMessage())} placeholder={!currentProfile ? "Entrez votre prénom pour commencer..." : "Votre question juridique..."} className="flex-1 py-3 bg-transparent border-none outline-none resize-none text-slate-800 dark:text-white max-h-[200px]" />
+            <textarea ref={textareaRef} rows={1} value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), sendMessage())} placeholder={!currentProfile ? "Choisissez une option ou présentez-vous..." : "Votre question juridique..."} className="flex-1 py-3 bg-transparent border-none outline-none resize-none text-slate-800 dark:text-white max-h-[200px]" />
             <button onClick={() => sendMessage()} disabled={(!input.trim() && !attachedFile) || isLoading} className={`p-3 ${colors.primary} text-white rounded-xl shadow-lg disabled:opacity-50 transition-all`}><Send size={20} /></button>
           </div>
         </div>
